@@ -6,14 +6,63 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		EB8F98422F9BAD9200686A03 /* NetworkExtension.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EB8F98412F9BAD9200686A03 /* NetworkExtension.framework */; };
+		EB8F984A2F9BAD9200686A03 /* GemodTunnel.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = EB8F983F2F9BAD9200686A03 /* GemodTunnel.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		EB8F98482F9BAD9200686A03 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = EB8F97E72F9B6E2A00686A03 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = EB8F983E2F9BAD9200686A03;
+			remoteInfo = GemodTunnel;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		EB8F984F2F9BAD9200686A03 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				EB8F984A2F9BAD9200686A03 /* GemodTunnel.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		EB8F97EF2F9B6E2A00686A03 /* Gemod.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Gemod.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		EB8F983F2F9BAD9200686A03 /* GemodTunnel.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = GemodTunnel.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		EB8F98412F9BAD9200686A03 /* NetworkExtension.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = NetworkExtension.framework; path = System/Library/Frameworks/NetworkExtension.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		EB8F984B2F9BAD9200686A03 /* Exceptions for "GemodTunnel" folder in "GemodTunnel" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = EB8F983E2F9BAD9200686A03 /* GemodTunnel */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		EB8F97F12F9B6E2A00686A03 /* Gemod */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Gemod;
+			sourceTree = "<group>";
+		};
+		EB8F98432F9BAD9200686A03 /* GemodTunnel */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				EB8F984B2F9BAD9200686A03 /* Exceptions for "GemodTunnel" folder in "GemodTunnel" target */,
+			);
+			path = GemodTunnel;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -26,6 +75,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		EB8F983C2F9BAD9200686A03 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EB8F98422F9BAD9200686A03 /* NetworkExtension.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -33,6 +90,8 @@
 			isa = PBXGroup;
 			children = (
 				EB8F97F12F9B6E2A00686A03 /* Gemod */,
+				EB8F98432F9BAD9200686A03 /* GemodTunnel */,
+				EB8F98402F9BAD9200686A03 /* Frameworks */,
 				EB8F97F02F9B6E2A00686A03 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,8 +100,17 @@
 			isa = PBXGroup;
 			children = (
 				EB8F97EF2F9B6E2A00686A03 /* Gemod.app */,
+				EB8F983F2F9BAD9200686A03 /* GemodTunnel.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		EB8F98402F9BAD9200686A03 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				EB8F98412F9BAD9200686A03 /* NetworkExtension.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -55,10 +123,12 @@
 				EB8F97EB2F9B6E2A00686A03 /* Sources */,
 				EB8F97EC2F9B6E2A00686A03 /* Frameworks */,
 				EB8F97ED2F9B6E2A00686A03 /* Resources */,
+				EB8F984F2F9BAD9200686A03 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				EB8F98492F9BAD9200686A03 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				EB8F97F12F9B6E2A00686A03 /* Gemod */,
@@ -69,6 +139,28 @@
 			productName = Gemod;
 			productReference = EB8F97EF2F9B6E2A00686A03 /* Gemod.app */;
 			productType = "com.apple.product-type.application";
+		};
+		EB8F983E2F9BAD9200686A03 /* GemodTunnel */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = EB8F984C2F9BAD9200686A03 /* Build configuration list for PBXNativeTarget "GemodTunnel" */;
+			buildPhases = (
+				EB8F983B2F9BAD9200686A03 /* Sources */,
+				EB8F983C2F9BAD9200686A03 /* Frameworks */,
+				EB8F983D2F9BAD9200686A03 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				EB8F98432F9BAD9200686A03 /* GemodTunnel */,
+			);
+			name = GemodTunnel;
+			packageProductDependencies = (
+			);
+			productName = GemodTunnel;
+			productReference = EB8F983F2F9BAD9200686A03 /* GemodTunnel.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -81,6 +173,9 @@
 				LastUpgradeCheck = 2640;
 				TargetAttributes = {
 					EB8F97EE2F9B6E2A00686A03 = {
+						CreatedOnToolsVersion = 26.4.1;
+					};
+					EB8F983E2F9BAD9200686A03 = {
 						CreatedOnToolsVersion = 26.4.1;
 					};
 				};
@@ -100,12 +195,20 @@
 			projectRoot = "";
 			targets = (
 				EB8F97EE2F9B6E2A00686A03 /* Gemod */,
+				EB8F983E2F9BAD9200686A03 /* GemodTunnel */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		EB8F97ED2F9B6E2A00686A03 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EB8F983D2F9BAD9200686A03 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -122,7 +225,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		EB8F983B2F9BAD9200686A03 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		EB8F98492F9BAD9200686A03 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = EB8F983E2F9BAD9200686A03 /* GemodTunnel */;
+			targetProxy = EB8F98482F9BAD9200686A03 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		EB8F97F82F9B6E2B00686A03 /* Debug */ = {
@@ -249,15 +367,21 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Gemod/Gemod.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = VP3RG8Y6G5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "需要使用相机扫描订阅二维码";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "需要读取最近照片以扫描订阅二维码";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -265,6 +389,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.gemod.Gemod;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
@@ -280,15 +405,20 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Gemod/Gemod.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = VP3RG8Y6G5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "需要使用相机扫描订阅二维码";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "需要读取最近照片以扫描订阅二维码";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -299,6 +429,70 @@
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		EB8F984D2F9BAD9200686A03 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = GemodTunnel/GemodTunnel.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = VP3RG8Y6G5;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = GemodTunnel/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = GemodTunnel;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.gemod.Gemod.GemodTunnel;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		EB8F984E2F9BAD9200686A03 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = GemodTunnel/GemodTunnel.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = VP3RG8Y6G5;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = GemodTunnel/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = GemodTunnel;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.gemod.Gemod.GemodTunnel;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
@@ -323,6 +517,15 @@
 			buildConfigurations = (
 				EB8F97FB2F9B6E2B00686A03 /* Debug */,
 				EB8F97FC2F9B6E2B00686A03 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		EB8F984C2F9BAD9200686A03 /* Build configuration list for PBXNativeTarget "GemodTunnel" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EB8F984D2F9BAD9200686A03 /* Debug */,
+				EB8F984E2F9BAD9200686A03 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

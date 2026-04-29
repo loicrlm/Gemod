@@ -26,7 +26,12 @@ enum SubscriptionServiceError: LocalizedError {
 }
 
 protocol SubscriptionService {
-    func fetchNodes(from urlString: String) async throws -> [String]
+    func fetchSubscription(from urlString: String) async throws -> SubscriptionContent
+}
+
+struct SubscriptionContent {
+    let nodes: [String]
+    let rawText: String
 }
 
 final class MihomoSubscriptionService: SubscriptionService {
@@ -41,7 +46,7 @@ final class MihomoSubscriptionService: SubscriptionService {
         "selector", "urltest", "fallback", "loadbalance"
     ]
 
-    func fetchNodes(from urlString: String) async throws -> [String] {
+    func fetchSubscription(from urlString: String) async throws -> SubscriptionContent {
         guard let url = URL(string: urlString),
               let scheme = url.scheme?.lowercased(),
               ["http", "https"].contains(scheme) else {
@@ -73,7 +78,7 @@ final class MihomoSubscriptionService: SubscriptionService {
             throw SubscriptionServiceError.emptySubscription
         }
 
-        return nodes
+        return SubscriptionContent(nodes: nodes, rawText: rawText)
     }
 
     private func parseNodeNames(from text: String) -> [String] {

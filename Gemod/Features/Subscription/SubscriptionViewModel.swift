@@ -5,19 +5,30 @@ import NetworkExtension
 
 @MainActor
 final class SubscriptionViewModel: ObservableObject {
+    enum ConnectionPhase: Equatable {
+        case idle
+        case connecting
+        case connected
+        case disconnecting
+        case failed
+    }
+
     @Published var subscriptionURL: String = ""
     @Published private(set) var nodes: [String] = []
     @Published private(set) var savedSubscriptionURL: String = ""
     @Published private(set) var selectedNode: String?
+    @Published private(set) var rawSubscriptionContent: String?
     @Published private(set) var mode: ProxyMode = .rule
     @Published private(set) var isConnected = false
     @Published private(set) var isCoreHealthy = true
     @Published private(set) var isLoading = false
+    @Published private(set) var isPreparingImport = false
     @Published private(set) var isTestingLatency = false
     @Published private(set) var nodeLatencyText: [String: String] = [:]
+    @Published private(set) var coreLogLines: [String] = []
+    @Published private(set) var connectionPhase: ConnectionPhase = .idle
     @Published var errorMessage: String?
     @Published var interruptionNoticeMessage: String?
-
     private let service: SubscriptionService
     private let store: SubscriptionStore
     private let engine: CoreEngine
@@ -25,10 +36,10 @@ final class SubscriptionViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
 
     init(
-        service: SubscriptionService = MihomoSubscriptionService(),
-        store: SubscriptionStore = UserDefaultsSubscriptionStore(),
-        engine: CoreEngine = SingboxMockEngine(),
-        tunnelController: TunnelController = TunnelController()
+        service: SubscriptionService,
+        store: SubscriptionStore,
+        engine: CoreEngine,
+        tunnelController: TunnelController
     ) {
         self.service = service
         self.store = store
@@ -54,6 +65,19 @@ final class SubscriptionViewModel: ObservableObject {
         }
     }
 
+    convenience init(engine: CoreEngine) {
+        self.init(
+            service: MihomoSubscriptionService(),
+            store: UserDefaultsSubscriptionStore(),
+            engine: engine,
+            tunnelController: TunnelController()
+        )
+    }
+
+    convenience init() {
+        self.init(engine: SingboxMockEngine())
+    }
+
     func importSubscription() async {
         await importSubscription(from: subscriptionURL)
     }
@@ -70,26 +94,27 @@ final class SubscriptionViewModel: ObservableObject {
         defer { isLoading = false }
 
         do {
-            if isConnected {
-                isConnected = false
-                persistState(errorText: AppLanguage.useSimplifiedChinese ? "保存连接状态失败" : "Failed to save connection state")
-            }
-            let fetchedNodes = try await service.fetchNodes(from: cleanedURL)
-            let preservedNode = selectedNode.flatMap { fetchedNodes.contains($0) ? $0 : nil }
-            let newSelectedNode = preservedNode ?? fetchedNodes.first
+            let fetched = try await service.fetchSubscription(from: cleanedURL)
+            let normalizedNodes = uniqueValues(fetched.nodes)
+            let newSelectedNode = normalizedNodes.first
+
             let newState = SubscriptionState(
                 url: cleanedURL,
-                nodes: fetchedNodes,
+                nodes: normalizedNodes,
                 selectedNode: newSelectedNode,
+                rawSubscriptionContent: fetched.rawText,
                 mode: mode,
                 isConnected: false
             )
             try store.save(newState)
             subscriptionURL = cleanedURL
             savedSubscriptionURL = cleanedURL
-            nodes = fetchedNodes
+            nodes = normalizedNodes
             selectedNode = newSelectedNode
+            rawSubscriptionContent = fetched.rawText
             isConnected = false
+            connectionPhase = .idle
+            nodeLatencyText = [:]
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -104,10 +129,60 @@ final class SubscriptionViewModel: ObservableObject {
         await importSubscription(from: value)
     }
 
+    func prepareForImport() async {
+        guard !isPreparingImport else { return }
+        isPreparingImport = true
+        errorMessage = nil
+        defer { isPreparingImport = false }
+        do {
+            try await ensureDisconnectedBeforeImport()
+        } catch {
+            errorMessage = buildConnectionErrorMessage(error)
+        }
+    }
+
     func selectNode(_ node: String) {
         guard nodes.contains(node) else { return }
+        guard selectedNode != node else { return }
+        guard !isConnectionBusy else { return }
+        let previousNode = selectedNode
         selectedNode = node
         persistState(errorText: AppLanguage.useSimplifiedChinese ? "保存节点选择失败" : "Failed to save selected node")
+        guard isConnected else { return }
+        Task {
+            errorMessage = nil
+            connectionPhase = .connecting
+            do {
+                try await engine.connect(node: node, mode: mode)
+                isConnected = true
+                connectionPhase = .connected
+                await refreshCoreHealth()
+                await refreshConnectionState()
+                await syncSelectedNodeWithRuntimeIfNeeded(source: "selectNode")
+                _ = await verifyInternetReachabilityIfNeeded()
+                persistState(errorText: AppLanguage.useSimplifiedChinese ? "保存节点选择失败" : "Failed to save selected node")
+            } catch {
+                let rollbackSucceeded: Bool
+                if let previousNode {
+                    rollbackSucceeded = (try? await engine.connect(node: previousNode, mode: mode)) != nil
+                } else {
+                    rollbackSucceeded = false
+                }
+                selectedNode = previousNode
+                if rollbackSucceeded {
+                    isConnected = true
+                    connectionPhase = .connected
+                    errorMessage = AppLanguage.useSimplifiedChinese
+                        ? "切换节点失败，已自动回退到原节点"
+                        : "Node switch failed and was rolled back to previous node"
+                } else {
+                    isConnected = false
+                    connectionPhase = .failed
+                    errorMessage = buildConnectionErrorMessage(error)
+                }
+                persistState(errorText: AppLanguage.useSimplifiedChinese ? "保存节点选择失败" : "Failed to save selected node")
+            }
+        }
     }
 
     func setMode(_ newMode: ProxyMode) {
@@ -120,18 +195,24 @@ final class SubscriptionViewModel: ObservableObject {
             errorMessage = AppLanguage.useSimplifiedChinese ? "请先选择节点" : "Please select a node first"
             return
         }
+        guard !isConnectionBusy else { return }
         Task {
             errorMessage = nil
+            var didStartConnectFlow = false
             do {
                 if isConnected {
+                    connectionPhase = .disconnecting
                     try await engine.disconnect()
                     if engine.requiresPacketTunnel {
                         try await tunnelController.stopTunnel()
                     }
                     if !engine.requiresPacketTunnel {
                         isConnected = false
+                        connectionPhase = .idle
                     }
                 } else if let node = selectedNode {
+                    didStartConnectFlow = true
+                    connectionPhase = .connecting
                     if engine.requiresPacketTunnel {
                         try await tunnelController.startTunnel()
                         try await Task.sleep(nanoseconds: 500_000_000)
@@ -139,12 +220,24 @@ final class SubscriptionViewModel: ObservableObject {
                     try await engine.connect(node: node, mode: mode)
                     if !engine.requiresPacketTunnel {
                         isConnected = true
+                        connectionPhase = .connected
                     }
                 }
                 await refreshCoreHealth()
                 await refreshConnectionState()
+                await syncSelectedNodeWithRuntimeIfNeeded(source: "connectSelectedNode")
+                await verifyInternetReachabilityIfNeeded()
                 persistState(errorText: AppLanguage.useSimplifiedChinese ? "保存连接状态失败" : "Failed to save connection state")
             } catch {
+                if didStartConnectFlow && engine.requiresPacketTunnel {
+                    // If connect flow fails (e.g. sing-box backend not ready), force tunnel teardown
+                    // so UI state does not remain "connected" while connect action already failed.
+                    try? await tunnelController.stopTunnel()
+                    await refreshConnectionState()
+                } else if didStartConnectFlow {
+                    isConnected = false
+                }
+                connectionPhase = .failed
                 errorMessage = buildConnectionErrorMessage(error)
             }
         }
@@ -155,6 +248,7 @@ final class SubscriptionViewModel: ObservableObject {
             errorMessage = AppLanguage.useSimplifiedChinese ? "暂无可测试节点" : "No nodes to test"
             return
         }
+        guard !isConnectionBusy else { return }
 
         isTestingLatency = true
         nodeLatencyText = [:]
@@ -164,9 +258,23 @@ final class SubscriptionViewModel: ObservableObject {
         let useChinese = AppLanguage.useSimplifiedChinese
         let timeoutText = useChinese ? "超时" : "timeout"
 
+        if engine.requiresPacketTunnel {
+            do {
+                if !isConnected {
+                    try await ensureConnectedForLatencyTest()
+                }
+            } catch {
+                connectionPhase = .failed
+                errorMessage = buildConnectionErrorMessage(error)
+                return
+            }
+        }
+
         await withTaskGroup(of: (String, String).self) { group in
             var nextIndex = 0
-            let maxConcurrent = min(4, testingNodes.count)
+            let maxConcurrent = engine.requiresPacketTunnel
+                ? min(4, testingNodes.count)
+                : min(6, testingNodes.count)
 
             for _ in 0..<maxConcurrent {
                 let node = testingNodes[nextIndex]
@@ -189,7 +297,38 @@ final class SubscriptionViewModel: ObservableObject {
                 }
             }
         }
-        errorMessage = nil
+
+        if engine.requiresPacketTunnel {
+            let allTimeoutNodes = testingNodes.filter { nodeLatencyText[$0] == timeoutText }
+            let fallbackNodes = Array(allTimeoutNodes.prefix(4))
+            if !fallbackNodes.isEmpty {
+                await testLatenciesViaActiveTunnelFallback(nodes: fallbackNodes, timeoutText: timeoutText)
+            }
+            if allTimeoutNodes.count > fallbackNodes.count {
+                TunnelEventStore.appendDiagnostic(
+                    "latency fallback limited processed=\(fallbackNodes.count) skipped=\(allTimeoutNodes.count - fallbackNodes.count)"
+                )
+            }
+        }
+
+        let timeoutCount = nodeLatencyText.values.filter { $0 == timeoutText }.count
+        if timeoutCount == testingNodes.count {
+            let diagnostic = TunnelEventStore.latestDiagnostic() ?? "-"
+            let ext = TunnelEventStore.latestExtensionDiagnostic() ?? "-"
+            let libbox = compactDiagnosticPart(TunnelEventStore.recentLibboxDiagnostics(limit: 1), maxLength: 120)
+            let delayAPIRejected = diagnostic.contains("status=503") || ext.contains("status=503")
+            if delayAPIRejected {
+                errorMessage = AppLanguage.useSimplifiedChinese
+                    ? "延迟测试接口返回 503（不是普通超时） | 诊断: \(diagnostic) | 扩展: \(ext) | libbox: \(libbox)"
+                    : "Latency API returned 503 (not a plain timeout) | Diagnostic: \(diagnostic) | Extension: \(ext) | libbox: \(libbox)"
+            } else {
+                errorMessage = AppLanguage.useSimplifiedChinese
+                    ? "延迟测试全部超时 | 诊断: \(diagnostic) | 扩展: \(ext) | libbox: \(libbox)"
+                    : "All latency tests timed out | Diagnostic: \(diagnostic) | Extension: \(ext) | libbox: \(libbox)"
+            }
+        } else {
+            errorMessage = nil
+        }
     }
 
     func latencyText(for node: String) -> String? {
@@ -200,18 +339,44 @@ final class SubscriptionViewModel: ObservableObject {
         isCoreHealthy = await engine.healthCheck()
     }
 
+    func refreshCoreLogs() {
+        coreLogLines = TunnelEventStore.recentLibboxDiagnosticLines(limit: 200)
+    }
+
+    func clearCoreLogs() {
+        TunnelEventStore.clearDiagnostics()
+        coreLogLines = []
+    }
+
     func refreshConnectionState() async {
-        guard engine.requiresPacketTunnel else { return }
+        guard engine.requiresPacketTunnel else {
+            connectionPhase = isConnected ? .connected : .idle
+            return
+        }
         do {
             let status = try await tunnelController.currentStatus()
             switch status {
-            case .connected, .connecting, .reasserting:
+            case .connected, .reasserting:
                 isConnected = true
+                connectionPhase = .connected
+                await syncSelectedNodeWithRuntimeIfNeeded(source: "refreshConnectionState")
+            case .connecting:
+                isConnected = false
+                connectionPhase = .connecting
+            case .disconnecting:
+                isConnected = false
+                connectionPhase = .disconnecting
             default:
                 isConnected = false
+                if connectionPhase != .failed {
+                    connectionPhase = .idle
+                }
             }
         } catch {
             isConnected = false
+            if connectionPhase != .failed {
+                connectionPhase = .idle
+            }
         }
     }
 
@@ -220,10 +385,106 @@ final class SubscriptionViewModel: ObservableObject {
     }
 
     private static func measureLatencyText(for node: String, engine: CoreEngine, timeoutText: String) async -> String {
-        guard let ms = await engine.testLatency(node: node, timeout: 8) else {
+        guard let ms = await engine.testLatency(node: node, timeout: 6.0) else {
             return timeoutText
         }
         return "\(ms)ms"
+    }
+
+    private func testLatenciesViaActiveTunnelFallback(nodes fallbackNodes: [String], timeoutText: String) async {
+        let originalNode = selectedNode
+        for node in fallbackNodes {
+            if let ms = await measureActiveTunnelHTTPLatency(for: node, timeout: 2.8) {
+                nodeLatencyText[node] = "\(ms)ms"
+            } else {
+                nodeLatencyText[node] = timeoutText
+            }
+        }
+
+        guard let originalNode, isConnected else { return }
+        do {
+            try await engine.connect(node: originalNode, mode: mode)
+            await syncSelectedNodeWithRuntimeIfNeeded(source: "latencyFallbackRestore")
+        } catch {
+            TunnelEventStore.appendDiagnostic("latency fallback restore failed node=\(originalNode) error=\(error.localizedDescription)")
+            await syncSelectedNodeWithRuntimeIfNeeded(source: "latencyFallbackRestoreFailed")
+            errorMessage = buildConnectionErrorMessage(error)
+        }
+    }
+
+    private func measureActiveTunnelHTTPLatency(for node: String, timeout: TimeInterval) async -> Int? {
+        do {
+            try await engine.connect(node: node, mode: mode)
+            try await Task.sleep(nanoseconds: 150_000_000)
+        } catch {
+            TunnelEventStore.appendDiagnostic("latency fallback switch failed node=\(node) error=\(error.localizedDescription)")
+            return nil
+        }
+
+        guard let url = URL(string: "https://www.google.com.hk") else { return nil }
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        configuration.timeoutIntervalForRequest = timeout
+        configuration.timeoutIntervalForResource = timeout
+        let session = URLSession(configuration: configuration)
+        defer { session.finishTasksAndInvalidate() }
+
+        var request = URLRequest(url: url, timeoutInterval: timeout)
+        request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        let start = CFAbsoluteTimeGetCurrent()
+        do {
+            let (_, response) = try await session.data(for: request)
+            guard let http = response as? HTTPURLResponse, (200...399).contains(http.statusCode) else {
+                TunnelEventStore.appendDiagnostic("latency fallback http status invalid node=\(node)")
+                return nil
+            }
+            let latency = Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
+            TunnelEventStore.appendDiagnostic("latency fallback ok node=\(node) url=https://www.google.com.hk ms=\(latency)")
+            return max(1, latency)
+        } catch {
+            TunnelEventStore.appendDiagnostic("latency fallback request failed node=\(node) error=\(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    private func uniqueValues(_ values: [String]) -> [String] {
+        Array(NSOrderedSet(array: values)) as? [String] ?? values
+    }
+
+    private func compactDiagnosticPart(_ text: String, maxLength: Int) -> String {
+        guard maxLength > 8 else { return text }
+        guard text.count > maxLength else { return text }
+        let headCount = maxLength / 2 - 1
+        let tailCount = maxLength - headCount - 3
+        return "\(text.prefix(headCount))...\(text.suffix(max(1, tailCount)))"
+    }
+
+    private func ensureDisconnectedBeforeImport() async throws {
+        if engine.requiresPacketTunnel {
+            let status = try? await tunnelController.currentStatus()
+            let shouldStopTunnel =
+                isConnected ||
+                status == .connected ||
+                status == .reasserting ||
+                status == .connecting ||
+                status == .disconnecting
+
+            if shouldStopTunnel {
+                connectionPhase = .disconnecting
+                do {
+                    try await engine.disconnect()
+                } catch {
+                    // If proxy command fails, still try to stop tunnel from system side.
+                }
+                try await tunnelController.stopTunnel()
+            }
+        } else if isConnected {
+            connectionPhase = .disconnecting
+            try await engine.disconnect()
+        }
+
+        isConnected = false
+        connectionPhase = .idle
     }
 
     private func checkTunnelInterruptionNotice() {
@@ -263,8 +524,46 @@ final class SubscriptionViewModel: ObservableObject {
         savedSubscriptionURL = state.url
         nodes = state.nodes
         selectedNode = state.selectedNode.flatMap { state.nodes.contains($0) ? $0 : state.nodes.first } ?? state.nodes.first
+        rawSubscriptionContent = state.rawSubscriptionContent
         mode = state.mode
         isConnected = state.isConnected
+        connectionPhase = state.isConnected ? .connected : .idle
+    }
+
+    var connectionStatusText: String {
+        switch connectionPhase {
+        case .idle:
+            return AppLanguage.useSimplifiedChinese ? "未连接" : "Disconnected"
+        case .connecting:
+            return AppLanguage.useSimplifiedChinese ? "连接中" : "Connecting"
+        case .connected:
+            return AppLanguage.useSimplifiedChinese ? "已连接" : "Connected"
+        case .disconnecting:
+            return AppLanguage.useSimplifiedChinese ? "断开中" : "Disconnecting"
+        case .failed:
+            return AppLanguage.useSimplifiedChinese ? "连接失败" : "Connection Failed"
+        }
+    }
+
+    var isConnectionBusy: Bool {
+        connectionPhase == .connecting || connectionPhase == .disconnecting
+    }
+
+    var connectionButtonText: String {
+        switch connectionPhase {
+        case .connecting:
+            return AppLanguage.useSimplifiedChinese ? "连接中..." : "Connecting..."
+        case .disconnecting:
+            return AppLanguage.useSimplifiedChinese ? "断开中..." : "Disconnecting..."
+        case .connected:
+            return AppLanguage.useSimplifiedChinese ? "断开" : "Disconnect"
+        case .idle, .failed:
+            return AppLanguage.useSimplifiedChinese ? "连接" : "Connect"
+        }
+    }
+
+    var isDisconnectActionActive: Bool {
+        connectionPhase == .connected || connectionPhase == .disconnecting
     }
 
     private func persistState(errorText: String) {
@@ -273,6 +572,7 @@ final class SubscriptionViewModel: ObservableObject {
                 url: savedSubscriptionURL,
                 nodes: nodes,
                 selectedNode: selectedNode,
+                rawSubscriptionContent: rawSubscriptionContent,
                 mode: mode,
                 isConnected: isConnected
             )
@@ -280,6 +580,118 @@ final class SubscriptionViewModel: ObservableObject {
         } catch {
             errorMessage = errorText
         }
+    }
+
+    private func ensureConnectedForLatencyTest() async throws {
+        let targetNode = selectedNode ?? nodes.first
+        guard let targetNode else {
+            throw SingboxRealEngineError.providerRejected(
+                AppLanguage.useSimplifiedChinese ? "请先选择节点" : "Please select a node first"
+            )
+        }
+        if selectedNode == nil {
+            selectedNode = targetNode
+            persistState(errorText: AppLanguage.useSimplifiedChinese ? "保存节点选择失败" : "Failed to save selected node")
+        }
+
+        connectionPhase = .connecting
+        if engine.requiresPacketTunnel {
+            try await tunnelController.startTunnel()
+            try await Task.sleep(nanoseconds: 500_000_000)
+        }
+        try await engine.connect(node: targetNode, mode: mode)
+        await refreshCoreHealth()
+        await refreshConnectionState()
+        await syncSelectedNodeWithRuntimeIfNeeded(source: "ensureConnectedForLatencyTest")
+        await verifyInternetReachabilityIfNeeded()
+        persistState(errorText: AppLanguage.useSimplifiedChinese ? "保存连接状态失败" : "Failed to save connection state")
+    }
+
+    private func syncSelectedNodeWithRuntimeIfNeeded(source: String) async {
+        guard engine.requiresPacketTunnel, isConnected, !isConnectionBusy else { return }
+        guard !nodes.isEmpty else { return }
+        guard let status = try? await tunnelController.sendProviderCommand(["command": "status"]) else { return }
+        guard status["status"] == "ok" else { return }
+        guard let runtimeNode = resolveRuntimeNode(from: status) else { return }
+        guard runtimeNode != selectedNode else { return }
+
+        selectedNode = runtimeNode
+        TunnelEventStore.appendDiagnostic("sync selected node from runtime source=\(source) runtime=\(runtimeNode)")
+        persistState(errorText: AppLanguage.useSimplifiedChinese ? "保存节点选择失败" : "Failed to save selected node")
+    }
+
+    private func resolveRuntimeNode(from status: [String: String]) -> String? {
+        let candidates: [String?] = [
+            status["selector_current"],
+            status["node"]
+        ]
+        for candidate in candidates {
+            guard let value = candidate?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else { continue }
+            if value == "gemod-active" { continue }
+            if let exact = nodes.first(where: { $0 == value }) {
+                return exact
+            }
+            let normalized = normalizeNodeTag(value)
+            if let normalizedMatch = nodes.first(where: { normalizeNodeTag($0) == normalized }) {
+                return normalizedMatch
+            }
+        }
+        return nil
+    }
+
+    private func normalizeNodeTag(_ text: String) -> String {
+        text
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "\r", with: "")
+            .replacingOccurrences(of: "\n", with: "")
+            .lowercased()
+    }
+
+    @discardableResult
+    private func verifyInternetReachabilityIfNeeded() async -> Bool {
+        guard engine.requiresPacketTunnel, isConnected else { return true }
+        if let node = selectedNode {
+            let latency = await engine.testLatency(node: node, timeout: 4.0)
+            if latency != nil {
+                return true
+            }
+        }
+        var detail = ""
+        if let status = try? await tunnelController.sendProviderCommand(["command": "status"]) {
+            let node = status["node"] ?? "-"
+            let phase = status["startup_phase"] ?? "-"
+            let backend = status["backend"] ?? "-"
+            let ready = status["ready"] ?? "-"
+            let outbound = status["active_outbound"] ?? "-"
+            let outboundType = status["active_outbound_type"] ?? "-"
+            let tls = status["active_tls"] ?? "-"
+            let sni = status["active_sni"] ?? "-"
+            let server = status["active_server"] ?? "-"
+            let routeFinal = status["route_final"] ?? "-"
+            let source = status["config_source"] ?? "-"
+            let selectedPath = status["selected_path"] ?? "-"
+            let selectorCurrent = status["selector_current"] ?? "-"
+            let dnsFinal = status["dns_final"] ?? "-"
+            let dnsServers = status["dns_servers"] ?? "-"
+            let dnsRuleServers = status["dns_rule_servers"] ?? "-"
+            let dnsProbe = status["dns_probe"] ?? "-"
+            let routeRulesMode = status["route_rules_mode"] ?? "-"
+            let routeRulesCount = status["route_rules_count"] ?? "-"
+            let rulesetMode = status["ruleset_mode"] ?? "-"
+            let rulesetLocal = status["ruleset_local_count"] ?? "0"
+            let rulesetDownloaded = status["ruleset_downloaded_count"] ?? "0"
+            let rulesetCached = status["ruleset_cached_count"] ?? "0"
+            let rulesetRemoved = status["ruleset_removed_count"] ?? "0"
+            let compactDNSServers = compactDiagnosticPart(dnsServers, maxLength: 90)
+            let compactDNSRules = compactDiagnosticPart(dnsRuleServers, maxLength: 60)
+            let compactDNSProbe = compactDiagnosticPart(dnsProbe, maxLength: 80)
+            let libbox = compactDiagnosticPart(TunnelEventStore.recentLibboxDiagnostics(limit: 1), maxLength: 120)
+            detail = " | backend=\(backend) node=\(node) phase=\(phase) ready=\(ready) source=\(source) path=\(selectedPath) selector=\(selectorCurrent) route=\(routeFinal) route.rules=\(routeRulesMode)/\(routeRulesCount) outbound=\(outbound)/\(outboundType) tls=\(tls) sni=\(sni) server=\(server) dns.final=\(dnsFinal) dns.servers=\(compactDNSServers) dns.rules=\(compactDNSRules) dns.probe=\(compactDNSProbe) ruleset=\(rulesetMode) local=\(rulesetLocal) dl=\(rulesetDownloaded) cache=\(rulesetCached) rm=\(rulesetRemoved) libbox=\(libbox)"
+        }
+        errorMessage = AppLanguage.useSimplifiedChinese
+            ? "已连接，但 sing-box 延迟接口验证失败（不等同于网站一定无法打开）\(detail)"
+            : "Connected, but sing-box delay API check failed (websites may still work)\(detail)"
+        return false
     }
 
     private func buildConnectionErrorMessage(_ error: Error) -> String {
@@ -290,18 +702,20 @@ final class SubscriptionViewModel: ObservableObject {
             base = "\(AppLanguage.useSimplifiedChinese ? "连接操作失败" : "Connection operation failed"): \(error.localizedDescription)"
         }
         let diagnostic = TunnelEventStore.latestDiagnostic() ?? "-"
+        let extensionDiagnostic = TunnelEventStore.latestExtensionDiagnostic() ?? "-"
+        let libboxDiagnostic = compactDiagnosticPart(TunnelEventStore.recentLibboxDiagnostics(limit: 1), maxLength: 120)
         let timeline = TunnelEventStore.latestStatusTimeline(limit: 6)
         let hint = buildTunnelRecoveryHint(error: error, diagnostic: diagnostic, timeline: timeline)
         if AppLanguage.useSimplifiedChinese {
             if let hint {
-                return "\(base)（建议：\(hint)） | 诊断: \(diagnostic) | 状态轨迹: \(timeline)"
+                return "\(base)（建议：\(hint)） | 诊断: \(diagnostic) | 扩展: \(extensionDiagnostic) | libbox: \(libboxDiagnostic) | 状态轨迹: \(timeline)"
             }
-            return "\(base) | 诊断: \(diagnostic) | 状态轨迹: \(timeline)"
+            return "\(base) | 诊断: \(diagnostic) | 扩展: \(extensionDiagnostic) | libbox: \(libboxDiagnostic) | 状态轨迹: \(timeline)"
         }
         if let hint {
-            return "\(base) (Suggestion: \(hint)) | Diagnostic: \(diagnostic) | Timeline: \(timeline)"
+            return "\(base) (Suggestion: \(hint)) | Diagnostic: \(diagnostic) | Extension: \(extensionDiagnostic) | libbox: \(libboxDiagnostic) | Timeline: \(timeline)"
         }
-        return "\(base) | Diagnostic: \(diagnostic) | Timeline: \(timeline)"
+        return "\(base) | Diagnostic: \(diagnostic) | Extension: \(extensionDiagnostic) | libbox: \(libboxDiagnostic) | Timeline: \(timeline)"
     }
 
     private func buildTunnelRecoveryHint(error: Error, diagnostic: String, timeline: String) -> String? {
@@ -341,13 +755,6 @@ final class SubscriptionViewModel: ObservableObject {
                 : "Provider failed while applying tunnel network settings; check Network Extension permission and signing profile"
         }
 
-        if diagnostic.contains("mock controller start failed") ||
-            diagnostic.contains("mock controller listener failed") {
-            return AppLanguage.useSimplifiedChinese
-                ? "扩展内本地控制器启动失败；请检查扩展内 127.0.0.1:9090 监听逻辑"
-                : "Provider local controller failed to start; inspect 127.0.0.1:9090 listener logic in extension"
-        }
-
         if let tunnelError = error as? TunnelControllerError {
             switch tunnelError {
             case .simulatorUnsupported:
@@ -374,6 +781,14 @@ final class SubscriptionViewModel: ObservableObject {
                 return AppLanguage.useSimplifiedChinese
                     ? "扩展消息通道异常；建议断开后重连"
                     : "Provider message channel failed; disconnect and reconnect"
+            case .providerMessageTimeout:
+                return AppLanguage.useSimplifiedChinese
+                    ? "扩展响应超时；请稍后重试或重新连接"
+                    : "Provider response timed out; retry or reconnect"
+            case .permissionDenied:
+                return AppLanguage.useSimplifiedChinese
+                    ? "系统拒绝保存 VPN 配置；请在系统设置允许 VPN，确认主 App/扩展的 Network Extension 与 App Group 能力一致，必要时删除 App 后重装"
+                    : "System denied saving VPN configuration; allow VPN in system settings, ensure Network Extension/App Group capabilities match between app and extension, and reinstall app if needed"
             case .tunnelStartTimeout:
                 if timeline.contains("connecting") {
                     return AppLanguage.useSimplifiedChinese

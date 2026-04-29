@@ -18,6 +18,7 @@ struct SubscriptionState: Codable {
     let url: String
     let nodes: [String]
     let selectedNode: String?
+    let rawSubscriptionContent: String?
     let mode: ProxyMode
     let isConnected: Bool
 
@@ -25,14 +26,16 @@ struct SubscriptionState: Codable {
         case url
         case nodes
         case selectedNode
+        case rawSubscriptionContent
         case mode
         case isConnected
     }
 
-    init(url: String, nodes: [String], selectedNode: String?, mode: ProxyMode, isConnected: Bool) {
+    init(url: String, nodes: [String], selectedNode: String?, rawSubscriptionContent: String?, mode: ProxyMode, isConnected: Bool) {
         self.url = url
         self.nodes = nodes
         self.selectedNode = selectedNode
+        self.rawSubscriptionContent = rawSubscriptionContent
         self.mode = mode
         self.isConnected = isConnected
     }
@@ -42,6 +45,7 @@ struct SubscriptionState: Codable {
         url = try container.decode(String.self, forKey: .url)
         nodes = try container.decode([String].self, forKey: .nodes)
         selectedNode = try container.decodeIfPresent(String.self, forKey: .selectedNode)
+        rawSubscriptionContent = try container.decodeIfPresent(String.self, forKey: .rawSubscriptionContent)
         mode = try container.decodeIfPresent(ProxyMode.self, forKey: .mode) ?? .rule
         isConnected = try container.decodeIfPresent(Bool.self, forKey: .isConnected) ?? false
     }

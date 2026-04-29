@@ -98,6 +98,50 @@ struct TunnelEventStore {
         return nil
     }
 
+    static func latestExtensionDiagnostic() -> String? {
+        for line in readSharedLogLines().reversed() {
+            let marker = " | D|"
+            guard let range = line.range(of: marker) else { continue }
+            let message = String(line[range.upperBound...])
+            if message.contains("[ext]") {
+                return message
+            }
+        }
+        return nil
+    }
+
+    static func recentExtensionDiagnostics(limit: Int = 3, containing needle: String? = nil) -> String {
+        let marker = " | D|"
+        let matches: [String] = readSharedLogLines().compactMap { line in
+            guard let range = line.range(of: marker) else { return nil }
+            let message = String(line[range.upperBound...])
+            guard message.contains("[ext]") else { return nil }
+            if let needle, !needle.isEmpty, !message.localizedCaseInsensitiveContains(needle) {
+                return nil
+            }
+            return message
+        }
+        let recent = matches.suffix(limit)
+        return recent.isEmpty ? "-" : recent.joined(separator: " || ")
+    }
+
+    static func recentLibboxDiagnostics(limit: Int = 3) -> String {
+        recentExtensionDiagnostics(limit: limit, containing: "libbox:")
+    }
+
+    static func recentLibboxDiagnosticLines(limit: Int = 200) -> [String] {
+        let marker = " | D|"
+        let matches: [String] = readSharedLogLines().compactMap { line in
+            guard let range = line.range(of: marker) else { return nil }
+            let message = String(line[range.upperBound...])
+            guard message.contains("[ext]"), message.localizedCaseInsensitiveContains("libbox:") else {
+                return nil
+            }
+            return line
+        }
+        return Array(matches.suffix(limit))
+    }
+
     static func appendStatusTimeline(_ status: NEVPNStatus, source: String) {
         let body = "[\(source)] \(statusText(status))"
         appendSharedLogLine(kind: "T", body)

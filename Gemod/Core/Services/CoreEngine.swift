@@ -23,16 +23,25 @@ final class SingboxMockEngine: CoreEngine, @unchecked Sendable {
 
     func testLatency(node: String, timeout: TimeInterval) async -> Int? {
         _ = node
-        var request = URLRequest(url: URL(string: "https://www.gstatic.com/generate_204")!)
-        request.timeoutInterval = timeout
-        request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
-
-        let start = CFAbsoluteTimeGetCurrent()
-        do {
-            _ = try await URLSession.shared.data(for: request)
-            return Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
-        } catch {
-            return nil
+        let candidates = [
+            "https://cp.cloudflare.com/generate_204",
+            "https://www.gstatic.com/generate_204"
+        ]
+        for rawURL in candidates {
+            guard let url = URL(string: rawURL) else { continue }
+            var request = URLRequest(url: url)
+            request.timeoutInterval = timeout
+            request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+            let start = CFAbsoluteTimeGetCurrent()
+            do {
+                let (_, response) = try await URLSession.shared.data(for: request)
+                if let http = response as? HTTPURLResponse, (200...399).contains(http.statusCode) {
+                    return Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
+                }
+            } catch {
+                continue
+            }
         }
+        return nil
     }
 }

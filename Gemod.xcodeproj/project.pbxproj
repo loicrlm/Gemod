@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		EB8F98422F9BAD9200686A03 /* NetworkExtension.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EB8F98412F9BAD9200686A03 /* NetworkExtension.framework */; };
 		EB8F984A2F9BAD9200686A03 /* GemodTunnel.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = EB8F983F2F9BAD9200686A03 /* GemodTunnel.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		EBB1A0012F9C100000686A03 /* Libbox.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = EBB1A0022F9C100000686A03 /* Libbox.xcframework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -39,6 +40,7 @@
 		EB8F97EF2F9B6E2A00686A03 /* Gemod.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Gemod.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		EB8F983F2F9BAD9200686A03 /* GemodTunnel.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = GemodTunnel.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		EB8F98412F9BAD9200686A03 /* NetworkExtension.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = NetworkExtension.framework; path = System/Library/Frameworks/NetworkExtension.framework; sourceTree = SDKROOT; };
+		EBB1A0022F9C100000686A03 /* Libbox.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = Libbox.xcframework; path = GemodTunnel/Frameworks/Libbox.xcframework; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -79,6 +81,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				EBB1A0012F9C100000686A03 /* Libbox.xcframework in Frameworks */,
 				EB8F98422F9BAD9200686A03 /* NetworkExtension.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -108,6 +111,7 @@
 		EB8F98402F9BAD9200686A03 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				EBB1A0022F9C100000686A03 /* Libbox.xcframework */,
 				EB8F98412F9BAD9200686A03 /* NetworkExtension.framework */,
 			);
 			name = Frameworks;
@@ -455,6 +459,10 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lresolv",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.gemod.Gemod.GemodTunnel;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -487,6 +495,10 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lresolv",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.gemod.Gemod.GemodTunnel;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";

@@ -3,17 +3,34 @@ import SwiftUI
 struct SubscriptionView: View {
     @StateObject var viewModel: SubscriptionViewModel
     @State private var isShowingImportSheet = false
+    @State private var isShowingCoreLogSheet = false
 
     var body: some View {
         NavigationView {
             VStack(spacing: 16) {
                 HStack(spacing: 12) {
+                    Button {
+                        viewModel.refreshCoreLogs()
+                        isShowingCoreLogSheet = true
+                    } label: {
+                        Image(systemName: "doc.text.magnifyingglass")
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+                            .frame(width: 32, height: 32)
+                            .background(
+                                Circle()
+                                    .fill(Color(.secondarySystemBackground))
+                            )
+                    }
+                    .buttonStyle(.plain)
+
                     Group {
                         if let error = viewModel.errorMessage {
                             Text(error)
                                 .foregroundStyle(.red)
                         } else {
-                            Text("")
+                            Text(viewModel.connectionStatusText)
+                                .foregroundStyle(.secondary)
                         }
                     }
                     .font(.footnote)
@@ -28,6 +45,9 @@ struct SubscriptionView: View {
 
                     Button {
                         isShowingImportSheet = true
+                        Task {
+                            await viewModel.prepareForImport()
+                        }
                     } label: {
                         Image(systemName: "plus")
                             .font(.headline)
@@ -40,7 +60,7 @@ struct SubscriptionView: View {
                             .shadow(color: .black.opacity(0.12), radius: 4, x: 0, y: 2)
                     }
                     .buttonStyle(.plain)
-                    .disabled(viewModel.isLoading)
+                    .disabled(viewModel.isLoading || viewModel.isPreparingImport || viewModel.isConnectionBusy)
                 }
 
                 Divider()
@@ -89,11 +109,12 @@ struct SubscriptionView: View {
                         .frame(width: 74, alignment: .leading)
                     }
                     Spacer()
-                    Button(viewModel.isConnected ? disconnectText : connectText) {
+                    Button(viewModel.connectionButtonText) {
                         viewModel.connectSelectedNode()
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(viewModel.savedSubscriptionURL.isEmpty || viewModel.selectedNode == nil)
+                    .tint(viewModel.isDisconnectActionActive ? .green : .blue)
+                    .disabled(viewModel.savedSubscriptionURL.isEmpty || viewModel.selectedNode == nil || viewModel.isConnectionBusy)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -120,6 +141,7 @@ struct SubscriptionView: View {
                         }
                     }
                     .buttonStyle(.plain)
+                    .disabled(viewModel.isConnectionBusy)
                     .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
                 }
                 .listStyle(.plain)
@@ -144,6 +166,17 @@ struct SubscriptionView: View {
                         Task {
                             await viewModel.importFromClipboard()
                         }
+                    }
+                )
+            }
+            .sheet(isPresented: $isShowingCoreLogSheet) {
+                CoreLogView(
+                    lines: viewModel.coreLogLines,
+                    onRefresh: {
+                        viewModel.refreshCoreLogs()
+                    },
+                    onClear: {
+                        viewModel.clearCoreLogs()
                     }
                 )
             }
@@ -180,15 +213,6 @@ struct SubscriptionView: View {
     private var noSubscriptionText: String {
         AppLanguage.useSimplifiedChinese ? "还没有导入订阅" : "No subscription yet"
     }
-
-    private var connectText: String {
-        AppLanguage.useSimplifiedChinese ? "连接" : "Connect"
-    }
-
-    private var disconnectText: String {
-        AppLanguage.useSimplifiedChinese ? "断开" : "Disconnect"
-    }
-
     private var importingText: String {
         AppLanguage.useSimplifiedChinese ? "正在导入..." : "Importing..."
     }

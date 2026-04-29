@@ -7,6 +7,7 @@ struct ImportSubscriptionView: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var latestImage: UIImage?
+    @State private var isLoadingLatestPhoto = false
     @State private var alertMessage: String?
 
     var body: some View {
@@ -50,6 +51,8 @@ struct ImportSubscriptionView: View {
                                     .frame(width: 120, height: 120)
                                     .clipped()
                                     .clipShape(RoundedRectangle(cornerRadius: 14))
+                            } else if isLoadingLatestPhoto {
+                                ProgressView()
                             } else {
                                 VStack(spacing: 8) {
                                     Image(systemName: "photo")
@@ -61,6 +64,7 @@ struct ImportSubscriptionView: View {
                         }
                         .frame(width: 120, height: 120)
                     }
+                    .buttonStyle(.plain)
 
                     Button {
                         onImportFromClipboard()
@@ -101,6 +105,10 @@ struct ImportSubscriptionView: View {
     }
 
     private func importFromLatestPhoto() {
+        if isLoadingLatestPhoto {
+            alertMessage = AppLanguage.useSimplifiedChinese ? "正在加载最近照片，请稍候" : "Loading latest photo, please wait"
+            return
+        }
         guard let image = latestImage,
               let rawString = QRCodeService.extractString(from: image),
               let url = URL(string: rawString),
@@ -114,12 +122,24 @@ struct ImportSubscriptionView: View {
     }
 
     private func loadLatestPhoto() async {
+        await MainActor.run {
+            isLoadingLatestPhoto = true
+        }
+        defer {
+            Task { @MainActor in
+                isLoadingLatestPhoto = false
+            }
+        }
+
         let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
         if status == .notDetermined {
             let _ = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
         }
         let authorizedStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
         guard authorizedStatus == .authorized || authorizedStatus == .limited else {
+            await MainActor.run {
+                latestImage = nil
+            }
             return
         }
 
@@ -135,6 +155,9 @@ struct ImportSubscriptionView: View {
         options.fetchLimit = 1
         let result = PHAsset.fetchAssets(with: options)
         guard let asset = result.firstObject else {
+            await MainActor.run {
+                latestImage = nil
+            }
             return
         }
 
@@ -153,7 +176,9 @@ struct ImportSubscriptionView: View {
         ) { image, info in
             let isDegraded = (info?[PHImageResultIsDegradedKey] as? Bool) ?? false
             guard !isDegraded else { return }
-            latestImage = image
+            Task { @MainActor in
+                latestImage = image
+            }
         }
     }
 }

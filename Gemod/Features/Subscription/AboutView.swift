@@ -36,6 +36,20 @@ struct AboutView: View {
                     }
 
                     Group {
+                        Text(AppLanguage.useSimplifiedChinese ? "本应用源码" : "Source code (this app)")
+                            .font(.headline)
+                        Text(AppLanguage.useSimplifiedChinese
+                            ? "Gemod 的公开源代码托管在 GitHub。构建与运行方式见仓库说明；复制与再分发请遵守本仓库的 LICENSE 及上游 sing-box 相关许可。"
+                            : "Gemod’s source is hosted on GitHub. See the repository for build notes. Redistribution is subject to this app’s LICENSE and upstream sing-box licensing.")
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+                        linkRow(
+                            title: AppLanguage.useSimplifiedChinese ? "Gemod 仓库（GitHub）" : "Gemod on GitHub",
+                            urlString: "https://github.com/loicrlm/gemod"
+                        )
+                    }
+
+                    Group {
                         Text(AppLanguage.useSimplifiedChinese ? "开源组件" : "Open source components")
                             .font(.headline)
                         Text(AppLanguage.useSimplifiedChinese
@@ -47,7 +61,7 @@ struct AboutView: View {
                         VStack(alignment: .leading, spacing: 10) {
                             linkRow(
                                 title: AppLanguage.useSimplifiedChinese ? "sing-box 许可证（GitHub）" : "sing-box license (GitHub)",
-                                urlString: "https://github.com/SagerNet/sing-box/blob/main/LICENSE"
+                                urlString: "https://github.com/SagerNet/sing-box/blob/testing/LICENSE"
                             )
                             linkRow(
                                 title: AppLanguage.useSimplifiedChinese ? "GNU GPL v3 全文" : "GNU GPL v3 full text",
@@ -62,8 +76,8 @@ struct AboutView: View {
                     }
 
                     Text(AppLanguage.useSimplifiedChinese
-                        ? "若需源码合规副本或授权细节，请联系开发者；建议在正式上线前由法律顾问复核 GPLv3 分发义务。"
-                        : "For source-compliance correspondence or licensing questions, contact the developer. Have legal counsel review GPLv3 distribution obligations before release.")
+                        ? "若需其他合规材料或商务授权，可联系开发者。公开源码的获取以仓库为准；GPL 相关义务建议由法律顾问在上线前复核。"
+                        : "For other compliance materials, contact the developer. The public source is the repository on GitHub. Have legal counsel review GPL obligations before release.")
                         .font(.footnote)
                         .foregroundStyle(.tertiary)
                 }

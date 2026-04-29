@@ -1,6 +1,6 @@
 # Gemod
 
-iOS 客户端，使用 [sing-box](https://github.com/SagerNet/sing-box) 能力（经 [Libbox](https://github.com/SagerNet/sing-box/tree/main/libbox)）在 Network Extension 中处理网络流量。与 sing-box 项目及其运营方**无隶属、赞助或官方关系**；名称与图标不代表上游项目。
+iOS 客户端，使用 [sing-box](https://github.com/SagerNet/sing-box) 能力（经 [Libbox](https://github.com/SagerNet/sing-box/tree/testing/libbox)）在 Network Extension 中处理网络流量。与 sing-box 项目及其运营方**无隶属、赞助或官方关系**；名称与图标不代表上游项目。
 
 **English:** An iOS app that uses sing-box (via Libbox) inside a Network Extension. Not affiliated with the sing-box project.
 
@@ -27,7 +27,7 @@ iOS 客户端，使用 [sing-box](https://github.com/SagerNet/sing-box) 能力�
 
 ## 相关链接
 
-- [sing-box 许可证](https://github.com/SagerNet/sing-box/blob/main/LICENSE)  
+- [sing-box 许可证](https://github.com/SagerNet/sing-box/blob/testing/LICENSE)（`main` 分支无此文件，见仓库默认分支 `testing`）  
 - [GPL-3.0 全文](https://www.gnu.org/licenses/gpl-3.0.html)
 
 ---

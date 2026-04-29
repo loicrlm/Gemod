@@ -139,6 +139,8 @@ struct SubscriptionView: View {
                                 .frame(width: 58, alignment: .trailing)
                                 .padding(.trailing, 15)
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .disabled(viewModel.isConnectionBusy)

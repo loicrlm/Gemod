@@ -29,6 +29,9 @@ xcuserdata/
 cursor/
 .tmp_video/
 
+# 与 Gemod 工程无关的本地/需求文档，不上传 GitHub
+需求.md
+
 # Carthage / CocoaPods (if ever added)
 Carthage/Build
 Pods/

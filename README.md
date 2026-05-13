@@ -1,8 +1,13 @@
 # Gemod
 
-iOS 客户端，使用 [sing-box](https://github.com/SagerNet/sing-box) 能力（经 [Libbox](https://github.com/SagerNet/sing-box/tree/testing/libbox)）在 Network Extension 中处理网络流量。与 sing-box 项目及其运营方**无隶属、赞助或官方关系**；名称与图标不代表上游项目。
+统一仓库，包含 iOS 与 macOS 两端客户端代码：
 
-**English:** An iOS app that uses sing-box (via Libbox) inside a Network Extension. Not affiliated with the sing-box project.
+- `Gemod-iOS/`：iOS 工程与源码
+- `Gemod-MacOS/`：macOS 工程与源码
+
+iOS/macOS 客户端均使用 [sing-box](https://github.com/SagerNet/sing-box) 能力（经 [Libbox](https://github.com/SagerNet/sing-box/tree/testing/libbox)）在 Network Extension 中处理网络流量。与 sing-box 项目及其运营方**无隶属、赞助或官方关系**；名称与图标不代表上游项目。
+
+**English:** A monorepo containing both iOS and macOS clients. Both use sing-box (via Libbox) inside Network Extension and are not affiliated with the sing-box project.
 
 ## 要求
 
@@ -12,13 +17,17 @@ iOS 客户端，使用 [sing-box](https://github.com/SagerNet/sing-box) 能力�
 
 ## 构建
 
-1. 用 Xcode 打开 `Gemod.xcodeproj`。
+1. iOS：用 Xcode 打开 `Gemod-iOS/Gemod.xcodeproj`。  
+   macOS：用 Xcode 打开 `Gemod-MacOS/Gemod for Mac.xcodeproj`。
 2. 为主 App 与 `GemodTunnel` 等扩展配置好 **Team、Bundle ID、App Groups、Network Extension 权利** 等（与你在本机开发时一致）。
-3. 选择**真机**为运行目标，编译并运行。
+3. 按平台选择对应运行目标并编译运行。
 
 ### Libbox 与仓库体积
 
-为符合 GitHub 单文件 100MB 限制，本仓库内 `GemodTunnel/Frameworks/Libbox.xcframework` **仅含设备用 `ios-arm64`**。若你本地需要完整 `xcframework`（含模拟器 slice），请自行用构建产物替换，说明见 `GemodTunnel/Frameworks/README.txt`。
+为符合 GitHub 单文件 100MB 限制：
+
+- iOS 侧 `Gemod-iOS/GemodTunnel/Frameworks/Libbox.xcframework` 仅保留设备必要 slice。
+- macOS 侧如需提交 framework，请确保单文件不超过 GitHub 限制，或改用发布产物方式分发。
 
 ## 许可证
 

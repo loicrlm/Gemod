@@ -29,9 +29,12 @@ xcuserdata/
 cursor/
 .tmp_video/
 Gemod/Configs/Secrets.local.xcconfig
+Gemod-iOS/Gemod/Configs/Secrets.local.xcconfig
+**/Configs/Secrets.local.xcconfig
 
 # 与 Gemod 工程无关的本地/需求文档，不上传 GitHub
 需求.md
+coding-behavior.mdc
 
 # Carthage / CocoaPods (if ever added)
 Carthage/Build

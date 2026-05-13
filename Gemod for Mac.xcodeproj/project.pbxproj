@@ -6,8 +6,37 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		EBB0AA022FB30AF800649C62 /* GemodTunnel.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = EBB0AA012FB30AF800649C62 /* GemodTunnel.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		EBB0AA062FB30AF800649C62 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = EBAFEC682FB30AF800649C62 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = EBB0AA072FB30AF800649C62;
+			remoteInfo = GemodTunnel;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		EBB0AA052FB30AF800649C62 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				EBB0AA022FB30AF800649C62 /* GemodTunnel.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		EBAFEC702FB30AF800649C62 /* Gemod for Mac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Gemod for Mac.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		EBB0AA012FB30AF800649C62 /* GemodTunnel.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = GemodTunnel.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -16,10 +45,22 @@
 			path = "Gemod for Mac";
 			sourceTree = "<group>";
 		};
+		EBB0AA032FB30AF800649C62 /* GemodTunnel */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = GemodTunnel;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		EBAFEC6D2FB30AF800649C62 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EBB0AA042FB30AF800649C62 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -33,6 +74,7 @@
 			isa = PBXGroup;
 			children = (
 				EBAFEC722FB30AF800649C62 /* Gemod for Mac */,
+				EBB0AA032FB30AF800649C62 /* GemodTunnel */,
 				EBAFEC712FB30AF800649C62 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,6 +83,7 @@
 			isa = PBXGroup;
 			children = (
 				EBAFEC702FB30AF800649C62 /* Gemod for Mac.app */,
+				EBB0AA012FB30AF800649C62 /* GemodTunnel.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -55,10 +98,12 @@
 				EBAFEC6C2FB30AF800649C62 /* Sources */,
 				EBAFEC6D2FB30AF800649C62 /* Frameworks */,
 				EBAFEC6E2FB30AF800649C62 /* Resources */,
+				EBB0AA052FB30AF800649C62 /* Embed App Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				EBB0AA082FB30AF800649C62 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				EBAFEC722FB30AF800649C62 /* Gemod for Mac */,
@@ -69,6 +114,28 @@
 			productName = "Gemod for Mac";
 			productReference = EBAFEC702FB30AF800649C62 /* Gemod for Mac.app */;
 			productType = "com.apple.product-type.application";
+		};
+		EBB0AA072FB30AF800649C62 /* GemodTunnel */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = EBB0AA112FB30AF800649C62 /* Build configuration list for PBXNativeTarget "GemodTunnel" */;
+			buildPhases = (
+				EBB0AA092FB30AF800649C62 /* Sources */,
+				EBB0AA042FB30AF800649C62 /* Frameworks */,
+				EBB0AA0A2FB30AF800649C62 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				EBB0AA032FB30AF800649C62 /* GemodTunnel */,
+			);
+			name = GemodTunnel;
+			packageProductDependencies = (
+			);
+			productName = GemodTunnel;
+			productReference = EBB0AA012FB30AF800649C62 /* GemodTunnel.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -83,6 +150,9 @@
 					EBAFEC6F2FB30AF800649C62 = {
 						CreatedOnToolsVersion = 26.4.1;
 					};
+					EBB0AA072FB30AF800649C62 = {
+						CreatedOnToolsVersion = 26.4.1;
+					};
 				};
 			};
 			buildConfigurationList = EBAFEC6B2FB30AF800649C62 /* Build configuration list for PBXProject "Gemod for Mac" */;
@@ -91,6 +161,8 @@
 			knownRegions = (
 				en,
 				Base,
+				"zh-Hans",
+				"zh-Hant",
 			);
 			mainGroup = EBAFEC672FB30AF800649C62;
 			minimizedProjectReferenceProxies = 1;
@@ -100,12 +172,20 @@
 			projectRoot = "";
 			targets = (
 				EBAFEC6F2FB30AF800649C62 /* Gemod for Mac */,
+				EBB0AA072FB30AF800649C62 /* GemodTunnel */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		EBAFEC6E2FB30AF800649C62 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EBB0AA0A2FB30AF800649C62 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -122,7 +202,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		EBB0AA092FB30AF800649C62 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		EBB0AA082FB30AF800649C62 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = EBB0AA072FB30AF800649C62 /* GemodTunnel */;
+			targetProxy = EBB0AA062FB30AF800649C62 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		EBAFEC792FB30AF900649C62 /* Debug */ = {
@@ -250,6 +345,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Gemod for Mac/Gemod.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
@@ -259,18 +355,23 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Gemod;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoads = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Gemod 需要使用摄像头扫描订阅二维码。";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.gemod.Gemod-for-Mac";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
@@ -282,6 +383,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Gemod for Mac/Gemod.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
@@ -291,18 +393,127 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Gemod;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoads = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Gemod 需要使用摄像头扫描订阅二维码。";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.gemod.Gemod-for-Mac";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		EBB0AA0B2FB30AF800649C62 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = GemodTunnel/GemodTunnel.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = VP3RG8Y6G5;
+				ENABLE_APP_SANDBOX = YES;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/GemodTunnel/Frameworks",
+				);
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "GemodTunnel-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = GemodTunnel;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../../Frameworks",
+					"@executable_path/Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					Libbox,
+					"-framework",
+					AppKit,
+					"-framework",
+					ApplicationServices,
+					"-framework",
+					CoreText,
+					"-framework",
+					SystemConfiguration,
+					"-framework",
+					UniformTypeIdentifiers,
+					"-lbsm",
+					"-lresolv",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.gemod.Gemod-for-Mac.tunnel";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		EBB0AA0C2FB30AF800649C62 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = GemodTunnel/GemodTunnel.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = VP3RG8Y6G5;
+				ENABLE_APP_SANDBOX = YES;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/GemodTunnel/Frameworks",
+				);
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "GemodTunnel-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = GemodTunnel;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../../Frameworks",
+					"@executable_path/Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					Libbox,
+					"-framework",
+					AppKit,
+					"-framework",
+					ApplicationServices,
+					"-framework",
+					CoreText,
+					"-framework",
+					SystemConfiguration,
+					"-framework",
+					UniformTypeIdentifiers,
+					"-lbsm",
+					"-lresolv",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.gemod.Gemod-for-Mac.tunnel";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
@@ -326,6 +537,15 @@
 			buildConfigurations = (
 				EBAFEC7C2FB30AF900649C62 /* Debug */,
 				EBAFEC7D2FB30AF900649C62 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		EBB0AA112FB30AF800649C62 /* Build configuration list for PBXNativeTarget "GemodTunnel" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EBB0AA0B2FB30AF800649C62 /* Debug */,
+				EBB0AA0C2FB30AF800649C62 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

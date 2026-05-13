@@ -1,0 +1,2 @@
+GEMOD_HTTP_VERIFY_CODE = ""
+#include? "Secrets.local.xcconfig"

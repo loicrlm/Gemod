@@ -223,7 +223,7 @@ struct SubscriptionView: View {
         if viewModel.isTestingLatency {
             return AppLanguage.useSimplifiedChinese ? "测试中..." : "Testing..."
         }
-        return AppLanguage.useSimplifiedChinese ? "延迟测试" : "Latency Test"
+        return AppLanguage.useSimplifiedChinese ? "延迟测试" : "Test"
     }
 }
 

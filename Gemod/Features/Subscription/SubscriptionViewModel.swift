@@ -34,6 +34,7 @@ final class SubscriptionViewModel: ObservableObject {
     private let engine: CoreEngine
     private let tunnelController: TunnelController
     private var cancellables = Set<AnyCancellable>()
+    private var userInitiatedDisconnectInFlight = false
 
     init(
         service: SubscriptionService,
@@ -57,6 +58,19 @@ final class SubscriptionViewModel: ObservableObject {
                 }
             }
             .store(in: &cancellables)
+
+#if !targetEnvironment(simulator)
+        NotificationCenter.default.publisher(for: Notification.Name("NEVPNStatusDidChange"))
+            .sink { [weak self] _ in
+                guard let self else { return }
+                Task {
+                    await self.refreshCoreHealth()
+                    await self.refreshConnectionState()
+                    self.checkTunnelInterruptionNotice()
+                }
+            }
+            .store(in: &cancellables)
+#endif
 
         Task {
             await refreshCoreHealth()
@@ -199,8 +213,16 @@ final class SubscriptionViewModel: ObservableObject {
         Task {
             errorMessage = nil
             var didStartConnectFlow = false
+            var didStartUserInitiatedDisconnect = false
+            defer {
+                if didStartUserInitiatedDisconnect {
+                    userInitiatedDisconnectInFlight = false
+                }
+            }
             do {
                 if isConnected {
+                    didStartUserInitiatedDisconnect = true
+                    userInitiatedDisconnectInFlight = true
                     connectionPhase = .disconnecting
                     try await engine.disconnect()
                     if engine.requiresPacketTunnel {
@@ -470,6 +492,8 @@ final class SubscriptionViewModel: ObservableObject {
                 status == .disconnecting
 
             if shouldStopTunnel {
+                userInitiatedDisconnectInFlight = true
+                defer { userInitiatedDisconnectInFlight = false }
                 connectionPhase = .disconnecting
                 do {
                     try await engine.disconnect()
@@ -488,8 +512,76 @@ final class SubscriptionViewModel: ObservableObject {
     }
 
     private func checkTunnelInterruptionNotice() {
-        guard let reason = TunnelEventStore.consumeLastStopReason() else { return }
-        interruptionNoticeMessage = localizedInterruptionMessage(for: reason)
+        if let notice = TunnelEventStore.consumeInterruptionNotice() {
+            interruptionNoticeMessage = localizedInterruptionMessage(for: notice)
+            return
+        }
+        if let reason = TunnelEventStore.consumeLastStopReason() {
+            interruptionNoticeMessage = localizedInterruptionMessage(for: reason)
+            return
+        }
+        checkUnexpectedTunnelTerminationFallback()
+    }
+
+    private func checkUnexpectedTunnelTerminationFallback() {
+        guard engine.requiresPacketTunnel else { return }
+        guard !userInitiatedDisconnectInFlight else { return }
+        guard !isConnected, connectionPhase != .disconnecting else { return }
+        guard let storedState = store.load(), storedState.isConnected else { return }
+
+        interruptionNoticeMessage = AppLanguage.useSimplifiedChinese
+            ? "检测到 VPN 隧道意外停止，可能是系统回收后台或扩展异常退出，请重新连接。"
+            : "Detected that the VPN tunnel stopped unexpectedly. The system may have reclaimed the extension or the extension may have exited unexpectedly. Please reconnect."
+        persistUnexpectedDisconnectState()
+    }
+
+    private func persistUnexpectedDisconnectState() {
+        do {
+            let state = SubscriptionState(
+                url: savedSubscriptionURL,
+                nodes: nodes,
+                selectedNode: selectedNode,
+                rawSubscriptionContent: rawSubscriptionContent,
+                mode: mode,
+                isConnected: false
+            )
+            try store.save(state)
+        } catch {
+            TunnelEventStore.appendDiagnostic("persist unexpected disconnect state failed: \(error.localizedDescription)")
+        }
+    }
+
+    private func localizedInterruptionMessage(for notice: TunnelEventStore.InterruptionNotice) -> String {
+        let detail = notice.message.trimmingCharacters(in: .whitespacesAndNewlines)
+        switch notice.source.lowercased() {
+        case "core":
+            if AppLanguage.useSimplifiedChinese {
+                return detail.isEmpty
+                    ? "检测到核心后台已停止，请重新连接。"
+                    : "检测到核心后台已停止（\(detail)），请重新连接。"
+            }
+            return detail.isEmpty
+                ? "Core backend stopped. Please reconnect."
+                : "Core backend stopped (\(detail)). Please reconnect."
+        case "tunnel":
+            if AppLanguage.useSimplifiedChinese {
+                return detail.isEmpty
+                    ? "检测到隧道后台已停止，请重新连接。"
+                    : "检测到隧道后台已停止（\(detail)），请重新连接。"
+            }
+            return detail.isEmpty
+                ? "Tunnel backend stopped. Please reconnect."
+                : "Tunnel backend stopped (\(detail)). Please reconnect."
+        default:
+            if AppLanguage.useSimplifiedChinese {
+                return detail.isEmpty
+                    ? "检测到代理后台已停止，请重新连接。"
+                    : "检测到代理后台已停止（\(detail)），请重新连接。"
+            }
+            return detail.isEmpty
+                ? "Proxy backend stopped. Please reconnect."
+                : "Proxy backend stopped (\(detail)). Please reconnect."
+        }
     }
 
     private func localizedInterruptionMessage(for reason: NEProviderStopReason) -> String {
@@ -621,9 +713,12 @@ final class SubscriptionViewModel: ObservableObject {
     }
 
     private func resolveRuntimeNode(from status: [String: String]) -> String? {
+        // Prefer backend `node` (RealSingboxProxyBackend.currentNode / connect result) over Clash
+        // `selector_current`, which reads `/proxies/gemod-active` and can lag briefly after a switch
+        // or disagree with subscription tag spelling — that mismatch caused the UI to snap back.
         let candidates: [String?] = [
-            status["selector_current"],
-            status["node"]
+            status["node"],
+            status["selector_current"]
         ]
         for candidate in candidates {
             guard let value = candidate?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else { continue }

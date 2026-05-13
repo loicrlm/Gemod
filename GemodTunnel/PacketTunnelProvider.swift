@@ -171,7 +171,14 @@ private actor RealSingboxProxyBackend: ProxyBackend {
     }
 
     func healthPayload() async -> [String: String] {
+        let wasReady = ready
         let pingOK = await ensureControllerReady(maxWait: 1.0)
+        if wasReady && !pingOK && state == .connected {
+            SharedTunnelEventStore.saveInterruptionNotice(
+                source: "core",
+                message: lastErrorMessage.isEmpty ? "sing-box controller became unavailable" : lastErrorMessage
+            )
+        }
         await refreshSelectorDiagnostics()
         await refreshDNSProbeDiagnosticsIfNeeded(force: false)
         var payload: [String: String] = [
@@ -283,6 +290,7 @@ private actor RealSingboxProxyBackend: ProxyBackend {
             lastErrorMessage = ""
             lastProbeAt = Date()
             lastTransitionAt = Date()
+            _ = await switchActiveNodeViaClashAPI(to: trimmedNode, interruptExistingConnections: false)
             await refreshSelectorDiagnostics()
             await refreshDNSProbeDiagnosticsIfNeeded(force: true)
             var payload: [String: String] = [
@@ -433,7 +441,8 @@ private actor RealSingboxProxyBackend: ProxyBackend {
         }
     }
 
-    private func switchActiveNodeViaClashAPI(to nodeTag: String) async -> Bool {
+    private func switchActiveNodeViaClashAPI(to nodeTag: String, interruptExistingConnections: Bool = true) async -> Bool {
+        let resolvedNodeTag = await resolveProxyTag(for: nodeTag) ?? nodeTag
         guard let encodedSelector = activeSelectorTag.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
               let url = URL(string: "http://127.0.0.1:9090/proxies/\(encodedSelector)") else {
             return false
@@ -442,16 +451,45 @@ private actor RealSingboxProxyBackend: ProxyBackend {
         request.httpMethod = "PUT"
         request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try? JSONSerialization.data(withJSONObject: ["name": nodeTag], options: [])
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["name": resolvedNodeTag], options: [])
         do {
             let (_, response) = try await URLSession.shared.data(for: request)
             guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
                 return false
             }
-            SharedTunnelEventStore.appendDiagnostic("selector switched to node=\(nodeTag)")
-            return true
+            let didInterrupt = interruptExistingConnections
+                ? await interruptActiveConnectionsViaClashAPI()
+                : true
+            SharedTunnelEventStore.appendDiagnostic(
+                "selector switched to node=\(resolvedNodeTag) interrupt=\(interruptExistingConnections ? (didInterrupt ? "true" : "false") : "skipped")"
+            )
+            return didInterrupt
         } catch {
             SharedTunnelEventStore.appendDiagnostic("selector switch error: \(error.localizedDescription)")
+            return false
+        }
+    }
+
+    private func interruptActiveConnectionsViaClashAPI() async -> Bool {
+        guard let url = URL(string: "http://127.0.0.1:9090/connections") else {
+            return false
+        }
+        var request = URLRequest(url: url, timeoutInterval: 2.5)
+        request.httpMethod = "DELETE"
+        request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse else {
+                SharedTunnelEventStore.appendDiagnostic("interrupt active connections missing status")
+                return false
+            }
+            guard http.statusCode == 204 || (200...299).contains(http.statusCode) else {
+                SharedTunnelEventStore.appendDiagnostic("interrupt active connections status=\(http.statusCode)")
+                return false
+            }
+            return true
+        } catch {
+            SharedTunnelEventStore.appendDiagnostic("interrupt active connections error: \(error.localizedDescription)")
             return false
         }
     }
@@ -1388,7 +1426,8 @@ private actor EmbeddedSingboxRuntimeDriver: SingboxRuntimeDriver {
                 "type": "selector",
                 "tag": activeSelectorTag,
                 "outbounds": selectableTags,
-                "default": selectedTag
+                "default": selectedTag,
+                "interrupt_exist_connections": true
             ]
             outbounds.append(selector)
             seenTags.insert(activeSelectorTag)
@@ -2206,12 +2245,63 @@ private enum SharedTunnelEventStore {
         var lastStopReasonRaw: Int
         var lastStopTimestamp: TimeInterval
         var pendingNotice: Bool
+        var lastNoticeSource: String
+        var lastNoticeMessage: String
+        var lastNoticeTimestamp: TimeInterval
+        var pendingInterruptionNotice: Bool
+
+        private enum CodingKeys: String, CodingKey {
+            case userInitiatedStop
+            case lastStopReasonRaw
+            case lastStopTimestamp
+            case pendingNotice
+            case lastNoticeSource
+            case lastNoticeMessage
+            case lastNoticeTimestamp
+            case pendingInterruptionNotice
+        }
+
+        init(
+            userInitiatedStop: Bool,
+            lastStopReasonRaw: Int,
+            lastStopTimestamp: TimeInterval,
+            pendingNotice: Bool,
+            lastNoticeSource: String,
+            lastNoticeMessage: String,
+            lastNoticeTimestamp: TimeInterval,
+            pendingInterruptionNotice: Bool
+        ) {
+            self.userInitiatedStop = userInitiatedStop
+            self.lastStopReasonRaw = lastStopReasonRaw
+            self.lastStopTimestamp = lastStopTimestamp
+            self.pendingNotice = pendingNotice
+            self.lastNoticeSource = lastNoticeSource
+            self.lastNoticeMessage = lastNoticeMessage
+            self.lastNoticeTimestamp = lastNoticeTimestamp
+            self.pendingInterruptionNotice = pendingInterruptionNotice
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            userInitiatedStop = try container.decodeIfPresent(Bool.self, forKey: .userInitiatedStop) ?? false
+            lastStopReasonRaw = try container.decodeIfPresent(Int.self, forKey: .lastStopReasonRaw) ?? -1
+            lastStopTimestamp = try container.decodeIfPresent(TimeInterval.self, forKey: .lastStopTimestamp) ?? 0
+            pendingNotice = try container.decodeIfPresent(Bool.self, forKey: .pendingNotice) ?? false
+            lastNoticeSource = try container.decodeIfPresent(String.self, forKey: .lastNoticeSource) ?? ""
+            lastNoticeMessage = try container.decodeIfPresent(String.self, forKey: .lastNoticeMessage) ?? ""
+            lastNoticeTimestamp = try container.decodeIfPresent(TimeInterval.self, forKey: .lastNoticeTimestamp) ?? 0
+            pendingInterruptionNotice = try container.decodeIfPresent(Bool.self, forKey: .pendingInterruptionNotice) ?? false
+        }
 
         static let initial = AppGroupSharedState(
             userInitiatedStop: false,
             lastStopReasonRaw: -1,
             lastStopTimestamp: 0,
-            pendingNotice: false
+            pendingNotice: false,
+            lastNoticeSource: "",
+            lastNoticeMessage: "",
+            lastNoticeTimestamp: 0,
+            pendingInterruptionNotice: false
         )
     }
 
@@ -2257,6 +2347,18 @@ private enum SharedTunnelEventStore {
         s.lastStopReasonRaw = reason.rawValue
         s.lastStopTimestamp = Date().timeIntervalSince1970
         s.pendingNotice = true
+        saveSharedState(s)
+    }
+
+    static func saveInterruptionNotice(source: String, message: String) {
+        let normalizedSource = source.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedMessage = message.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedSource.isEmpty, !normalizedMessage.isEmpty else { return }
+        var s = loadSharedState()
+        s.lastNoticeSource = normalizedSource
+        s.lastNoticeMessage = normalizedMessage
+        s.lastNoticeTimestamp = Date().timeIntervalSince1970
+        s.pendingInterruptionNotice = true
         saveSharedState(s)
     }
 

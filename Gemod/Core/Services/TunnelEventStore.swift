@@ -4,6 +4,12 @@ import NetworkExtension
 struct TunnelEventStore {
     static let appGroupIdentifier = "group.com.gemod.Gemod"
 
+    struct InterruptionNotice {
+        let source: String
+        let message: String
+        let timestamp: TimeInterval
+    }
+
     /// 与扩展共用；勿再用 `UserDefaults(suiteName: appGroup)`，会触发 cfprefsd 且 Container 未就绪时反复告警。
     private static let sharedStateFileName = "tunnel_app_group_state.json"
 
@@ -12,12 +18,63 @@ struct TunnelEventStore {
         var lastStopReasonRaw: Int
         var lastStopTimestamp: TimeInterval
         var pendingNotice: Bool
+        var lastNoticeSource: String
+        var lastNoticeMessage: String
+        var lastNoticeTimestamp: TimeInterval
+        var pendingInterruptionNotice: Bool
+
+        private enum CodingKeys: String, CodingKey {
+            case userInitiatedStop
+            case lastStopReasonRaw
+            case lastStopTimestamp
+            case pendingNotice
+            case lastNoticeSource
+            case lastNoticeMessage
+            case lastNoticeTimestamp
+            case pendingInterruptionNotice
+        }
+
+        init(
+            userInitiatedStop: Bool,
+            lastStopReasonRaw: Int,
+            lastStopTimestamp: TimeInterval,
+            pendingNotice: Bool,
+            lastNoticeSource: String,
+            lastNoticeMessage: String,
+            lastNoticeTimestamp: TimeInterval,
+            pendingInterruptionNotice: Bool
+        ) {
+            self.userInitiatedStop = userInitiatedStop
+            self.lastStopReasonRaw = lastStopReasonRaw
+            self.lastStopTimestamp = lastStopTimestamp
+            self.pendingNotice = pendingNotice
+            self.lastNoticeSource = lastNoticeSource
+            self.lastNoticeMessage = lastNoticeMessage
+            self.lastNoticeTimestamp = lastNoticeTimestamp
+            self.pendingInterruptionNotice = pendingInterruptionNotice
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            userInitiatedStop = try container.decodeIfPresent(Bool.self, forKey: .userInitiatedStop) ?? false
+            lastStopReasonRaw = try container.decodeIfPresent(Int.self, forKey: .lastStopReasonRaw) ?? -1
+            lastStopTimestamp = try container.decodeIfPresent(TimeInterval.self, forKey: .lastStopTimestamp) ?? 0
+            pendingNotice = try container.decodeIfPresent(Bool.self, forKey: .pendingNotice) ?? false
+            lastNoticeSource = try container.decodeIfPresent(String.self, forKey: .lastNoticeSource) ?? ""
+            lastNoticeMessage = try container.decodeIfPresent(String.self, forKey: .lastNoticeMessage) ?? ""
+            lastNoticeTimestamp = try container.decodeIfPresent(TimeInterval.self, forKey: .lastNoticeTimestamp) ?? 0
+            pendingInterruptionNotice = try container.decodeIfPresent(Bool.self, forKey: .pendingInterruptionNotice) ?? false
+        }
 
         static let initial = AppGroupSharedState(
             userInitiatedStop: false,
             lastStopReasonRaw: -1,
             lastStopTimestamp: 0,
-            pendingNotice: false
+            pendingNotice: false,
+            lastNoticeSource: "",
+            lastNoticeMessage: "",
+            lastNoticeTimestamp: 0,
+            pendingInterruptionNotice: false
         )
     }
 
@@ -71,6 +128,18 @@ struct TunnelEventStore {
         saveSharedState(s)
     }
 
+    static func saveInterruptionNotice(source: String, message: String) {
+        let normalizedSource = source.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedMessage = message.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedSource.isEmpty, !normalizedMessage.isEmpty else { return }
+        var s = loadSharedState()
+        s.lastNoticeSource = normalizedSource
+        s.lastNoticeMessage = normalizedMessage
+        s.lastNoticeTimestamp = Date().timeIntervalSince1970
+        s.pendingInterruptionNotice = true
+        saveSharedState(s)
+    }
+
     static func consumeLastStopReason() -> NEProviderStopReason? {
         var s = loadSharedState()
         guard s.pendingNotice else { return nil }
@@ -78,6 +147,18 @@ struct TunnelEventStore {
         s.pendingNotice = false
         saveSharedState(s)
         return NEProviderStopReason(rawValue: raw)
+    }
+
+    static func consumeInterruptionNotice() -> InterruptionNotice? {
+        var s = loadSharedState()
+        guard s.pendingInterruptionNotice else { return nil }
+        let source = s.lastNoticeSource
+        let message = s.lastNoticeMessage
+        let timestamp = s.lastNoticeTimestamp
+        s.pendingInterruptionNotice = false
+        saveSharedState(s)
+        guard !source.isEmpty, !message.isEmpty else { return nil }
+        return InterruptionNotice(source: source, message: message, timestamp: timestamp)
     }
 
     private static let sharedLogFileName = "tunnel_diagnostics.log"

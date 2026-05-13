@@ -6,6 +6,8 @@ enum SubscriptionServiceError: LocalizedError {
     case httpStatus(Int)
     case invalidResponse
     case emptySubscription
+    case missingVerifyCode
+    case verifyCodeMismatch
 
     var errorDescription: String? {
         switch self {
@@ -21,6 +23,10 @@ enum SubscriptionServiceError: LocalizedError {
             return AppLanguage.useSimplifiedChinese ? "订阅内容无效" : "Invalid subscription content"
         case .emptySubscription:
             return AppLanguage.useSimplifiedChinese ? "未解析到节点" : "No nodes found"
+        case .missingVerifyCode, .verifyCodeMismatch:
+            return AppLanguage.useSimplifiedChinese
+                ? "此订阅与当前应用不匹配，请使用Gemod Pro"
+                : "This subscription does not match the current app. Please use Gemod Pro."
         }
     }
 }
@@ -35,6 +41,12 @@ struct SubscriptionContent {
 }
 
 final class MihomoSubscriptionService: SubscriptionService {
+    #if GEMOD_FREE
+    private enum VerifyHeader {
+        static let primary = "X-Subscription-Verify"
+    }
+    #endif
+
     private static let internalTags: Set<String> = [
         "direct", "block", "dns-out", "dns", "selector", "urltest", "auto"
     ]
@@ -45,6 +57,18 @@ final class MihomoSubscriptionService: SubscriptionService {
     private static let groupTypes: Set<String> = [
         "selector", "urltest", "fallback", "loadbalance"
     ]
+
+    #if GEMOD_FREE
+    /// Build-time injected expected value from Info.plist key `GEMOD_HTTP_VERIFY_CODE`.
+    /// Real value should be supplied via local/private xcconfig and excluded from public repo.
+    private var expectedVerifyCode: String? {
+        guard let raw = Bundle.main.object(forInfoDictionaryKey: "GEMOD_HTTP_VERIFY_CODE") as? String else {
+            return nil
+        }
+        let value = normalizedVerifyCode(raw)
+        return value.isEmpty ? nil : value
+    }
+    #endif
 
     func fetchSubscription(from urlString: String) async throws -> SubscriptionContent {
         guard let url = URL(string: urlString),
@@ -69,6 +93,10 @@ final class MihomoSubscriptionService: SubscriptionService {
             throw SubscriptionServiceError.invalidResponse
         }
 
+        #if GEMOD_FREE
+        try validateVerifyCode(from: httpResponse)
+        #endif
+
         guard let rawText = String(data: data, encoding: .utf8), !rawText.isEmpty else {
             throw SubscriptionServiceError.invalidResponse
         }
@@ -80,6 +108,30 @@ final class MihomoSubscriptionService: SubscriptionService {
 
         return SubscriptionContent(nodes: nodes, rawText: rawText)
     }
+
+    #if GEMOD_FREE
+    private func validateVerifyCode(from response: HTTPURLResponse) throws {
+        guard let expected = expectedVerifyCode else {
+            // Safe fallback: if expected value isn't injected, treat as mismatch to block import.
+            throw SubscriptionServiceError.verifyCodeMismatch
+        }
+        let received = response.value(forHTTPHeaderField: VerifyHeader.primary)
+            .map(normalizedVerifyCode(_:))
+
+        guard let received, !received.isEmpty else {
+            throw SubscriptionServiceError.missingVerifyCode
+        }
+        guard received == expected else {
+            throw SubscriptionServiceError.verifyCodeMismatch
+        }
+    }
+
+    private func normalizedVerifyCode(_ raw: String) -> String {
+        raw
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+    }
+    #endif
 
     private func parseNodeNames(from text: String) -> [String] {
         let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
